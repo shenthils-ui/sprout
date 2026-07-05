@@ -1,0 +1,84 @@
+@import "tailwindcss";
+
+/* ---- Sprout theme system ----
+   Palettes swap a small set of CSS variables; Tailwind arbitrary values
+   like bg-(--card) pick them up everywhere. */
+
+:root {
+  font-family: ui-rounded, "SF Pro Rounded", "Segoe UI", system-ui, sans-serif;
+  --radius: 1.25rem;
+}
+
+/* palettes (light) */
+[data-palette="sunny"]     { --accent:#f59e0b; --accent-2:#fb923c; --tint:#fef3c7; --bg:#fffbf2; --card:#ffffff; --ink:#3b2f1e; --muted:#a08c6b; --line:#f3e8d2; }
+[data-palette="bubblegum"] { --accent:#ec4899; --accent-2:#f472b6; --tint:#fce7f3; --bg:#fdf5f9; --card:#ffffff; --ink:#4a2338; --muted:#b0819c; --line:#f8e1ee; }
+[data-palette="ocean"]     { --accent:#0d9488; --accent-2:#2dd4bf; --tint:#ccfbf1; --bg:#f3fbfa; --card:#ffffff; --ink:#1d3a37; --muted:#7ba39e; --line:#d9f0ec; }
+[data-palette="galaxy"]    { --accent:#8b5cf6; --accent-2:#c084fc; --tint:#ede9fe; --bg:#faf8ff; --card:#ffffff; --ink:#332b4a; --muted:#9b8fc0; --line:#eae4fb; }
+[data-palette="mint"]      { --accent:#10b981; --accent-2:#4ade80; --tint:#d1fae5; --bg:#f4fbf7; --card:#ffffff; --ink:#1e3a2c; --muted:#84a894; --line:#dcf2e6; }
+[data-palette="peach"]     { --accent:#f97316; --accent-2:#fb7185; --tint:#ffedd5; --bg:#fff8f3; --card:#ffffff; --ink:#43291a; --muted:#b08d76; --line:#fbe6d4; }
+
+/* dark mode: shared dark surfaces, accent stays from the palette */
+[data-mode="dark"] { --bg:#171522; --card:#221f31; --ink:#f1edfa; --muted:#9a92b5; --line:#322d47; }
+[data-mode="dark"][data-palette="sunny"]  { --tint:#3a3020; }
+[data-mode="dark"][data-palette="bubblegum"] { --tint:#3a2231; }
+[data-mode="dark"][data-palette="ocean"]  { --tint:#1d3634; }
+[data-mode="dark"][data-palette="galaxy"] { --tint:#2e2745; }
+[data-mode="dark"][data-palette="mint"]   { --tint:#1f3529; }
+[data-mode="dark"][data-palette="peach"]  { --tint:#3b2a1e; }
+
+body {
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior-y: none;
+}
+
+/* ---- micro-animations ---- */
+@keyframes pop {
+  0% { transform: scale(1); }
+  40% { transform: scale(1.18); }
+  100% { transform: scale(1); }
+}
+@keyframes sparkle-float {
+  0% { transform: translateY(0) scale(0.6); opacity: 1; }
+  100% { transform: translateY(-42px) scale(1.25); opacity: 0; }
+}
+@keyframes wiggle {
+  0%, 100% { transform: rotate(0deg); }
+  25% { transform: rotate(-6deg); }
+  75% { transform: rotate(6deg); }
+}
+@keyframes rise-in {
+  from { transform: translateY(14px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+@keyframes badge-drop {
+  0% { transform: translateY(-30px) scale(0.5); opacity: 0; }
+  60% { transform: translateY(6px) scale(1.08); opacity: 1; }
+  100% { transform: translateY(0) scale(1); }
+}
+.anim-pop { animation: pop 0.35s ease-out; }
+.anim-wiggle { animation: wiggle 0.5s ease-in-out; }
+.anim-rise { animation: rise-in 0.3s ease-out both; }
+.anim-badge { animation: badge-drop 0.5s cubic-bezier(.2,1.4,.4,1) both; }
+.sparkle {
+  position: absolute;
+  pointer-events: none;
+  animation: sparkle-float 0.8s ease-out forwards;
+}
+
+/* journal-page look for diary history */
+.journal-lines {
+  background-image: repeating-linear-gradient(
+    transparent, transparent 1.55em, var(--line) 1.55em, var(--line) calc(1.55em + 1px));
+  line-height: 1.6em;
+}
+
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+
+@media print {
+  .no-print { display: none !important; }
+  body { background: white; color: black; }
+}
