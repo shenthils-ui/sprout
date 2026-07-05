@@ -127,6 +127,50 @@ for (const [href, marker] of [
   ok(`screen ${href} renders`, true);
 }
 
+// --- 7b. new features: riddle, quiz corner, dress-up, book goal, recap ---
+await page.locator('a[href$="/today"]').click();
+await page.waitForSelector('text=🧩');
+await page.locator('button', { hasText: 'reveal!' }).click();
+ok('riddle of the day reveals its answer', true);
+
+await page.locator('button', { hasText: 'Quiz Corner' }).click();
+await page.waitForSelector('text=Which word means');
+for (let i = 0; i < 3; i++) {
+  await page.locator('.fixed button.rounded-2xl').first().click();
+  await page.waitForTimeout(1100);
+}
+await page.waitForSelector('text=/ 3');
+ok('quiz corner plays a full 3-question round', true);
+await page.locator('button', { hasText: 'Done' }).click();
+const quizSaved = await page.evaluate(async () => {
+  const d = new Date(); const p = (n) => String(n).padStart(2, '0');
+  const date = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  return window.sproutApi.getQuiz({ date });
+});
+ok('quiz result recorded in the on-device db', quizSaved != null && quizSaved.total === 3);
+
+await page.locator('button[aria-label="Dress up Pip"]').click();
+await page.waitForSelector('text=Dress up Pip');
+const capBtn = page.locator('button', { hasText: 'Sporty cap' });
+ok('dress-up: cap unlocked by First Sprout badge', (await capBtn.count()) === 1);
+await capBtn.click();
+await page.waitForTimeout(400);
+await page.locator('button', { hasText: 'done' }).first().click();
+ok('Pip wears the cap', (await page.locator('button[aria-label="Dress up Pip"] >> text=🧢').count()) === 1);
+
+await page.evaluate(() =>
+  window.sproutApi.setBookGoal({ title: 'Matilda', total_pages: 30 }));
+await page.locator('a[href$="/history"]').click();
+await page.waitForSelector('text=📚 Reading log');
+ok('reading goal reached -> book marked finished',
+  (await page.locator('text=finished!').count()) === 1);
+
+await page.locator('a[href$="/today"]').click();
+await page.locator('a[href$="/recap"]').click();
+await page.waitForSelector('text=My week');
+ok('weekly recap renders with stats', (await page.locator('text=tasks done').count()) >= 1);
+await page.locator('a[href$="/today"]').first().click();
+
 // --- 8. service worker + full offline reload ---
 await page.waitForFunction(() => navigator.serviceWorker?.controller != null
   || navigator.serviceWorker?.getRegistrations().then((r) => r.length > 0), { timeout: 15000 }).catch(() => {});

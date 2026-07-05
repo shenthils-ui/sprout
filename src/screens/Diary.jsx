@@ -3,7 +3,26 @@ import { Link } from 'react-router-dom';
 import { todayStr } from '../../shared/dates.js';
 import { getApi } from '../api/index.js';
 import { useCelebrate } from '../components/Celebration.jsx';
+import DoodlePad from '../components/DoodlePad.jsx';
 import { MOODS, promptOfTheDay, shortDate, shufflePrompt } from '../lib/daily.js';
+
+// Downscale a photo so entries stay small enough for the phone's database.
+function shrinkPhoto(file, maxSide = 1000) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxSide / Math.max(img.width, img.height));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      URL.revokeObjectURL(img.src);
+      resolve(canvas.toDataURL('image/jpeg', 0.8));
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
 
 export default function Diary() {
   const date = todayStr();
@@ -12,12 +31,17 @@ export default function Diary() {
   const [entry, setEntry] = useState(null);      // today's diary row (or null)
   const [text, setText] = useState('');
   const [mood, setMood] = useState(null);
+  const [photo, setPhoto] = useState(null);
+  const [doodle, setDoodle] = useState(null);
+  const [showDoodle, setShowDoodle] = useState(false);
   const [saved, setSaved] = useState('idle');    // idle | saving | saved
   const [history, setHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false);
   const celebrate = useCelebrate();
   const debounce = useRef(null);
   const entryRef = useRef(null);
+  const latest = useRef({});
+  latest.current = { text, mood, photo, doodle };
 
   useEffect(() => {
     const api = getApi();
@@ -29,6 +53,9 @@ export default function Diary() {
         entryRef.current = today;
         setText(today?.text ?? '');
         setMood(today?.mood ?? null);
+        setPhoto(today?.photo ?? null);
+        setDoodle(today?.doodle ?? null);
+        if (today?.doodle) setShowDoodle(true);
         setPrompt(today?.prompt_text
           ? { text: today.prompt_text }
           : promptOfTheDay(ps, date));
@@ -37,14 +64,17 @@ export default function Diary() {
       .catch(console.error);
   }, [date]);
 
-  const save = useCallback(async (newText, newMood) => {
+  const save = useCallback(async (patch = {}) => {
     setSaved('saving');
+    const cur = { ...latest.current, ...patch };
     const res = await getApi().saveDiary({
       id: entryRef.current?.id ?? null,
       date,
-      text: newText,
+      text: cur.text,
       prompt_text: prompt?.text ?? null,
-      mood: newMood,
+      mood: cur.mood,
+      photo: cur.photo,
+      doodle: cur.doodle,
     });
     entryRef.current = res.entry;
     setEntry(res.entry);
@@ -56,14 +86,29 @@ export default function Diary() {
   const onType = (v) => {
     setText(v);
     clearTimeout(debounce.current);
-    debounce.current = setTimeout(() => save(v, mood), 600);
+    debounce.current = setTimeout(() => save({ text: v }), 600);
   };
 
   const onMood = (m) => {
     const next = mood === m ? null : m;
     setMood(next);
     clearTimeout(debounce.current);
-    save(text, next);
+    save({ mood: next });
+  };
+
+  const onPhoto = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    const data = await shrinkPhoto(file);
+    setPhoto(data);
+    save({ photo: data });
+  };
+
+  const onDoodle = (data) => {
+    setDoodle(data);
+    clearTimeout(debounce.current);
+    debounce.current = setTimeout(() => save({ doodle: data }), 400);
   };
 
   return (
@@ -94,6 +139,36 @@ export default function Diary() {
           {saved === 'saving' ? 'saving…' : saved === 'saved' ? 'saved ✓' : 'autosaves as you write'}
         </p>
         <p className="text-[11px] text-(--muted)">{text.trim() ? `${text.trim().split(/\s+/).length} words` : ''}</p>
+      </div>
+
+      {/* photo of the day */}
+      <div className="mt-2 rounded-2xl border border-(--line) bg-(--card) p-3 shadow-sm">
+        {photo ? (
+          <div className="relative">
+            <img src={photo} alt="Today's photo" className="w-full rounded-xl" />
+            <button onClick={() => { setPhoto(null); save({ photo: null }); }}
+              className="absolute right-2 top-2 rounded-full bg-black/50 px-2.5 py-1 text-xs font-bold text-white">
+              ✕ remove
+            </button>
+          </div>
+        ) : (
+          <label className="flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-(--line) py-3 text-sm font-bold text-(--muted)">
+            📸 Add a photo of today
+            <input type="file" accept="image/*" className="hidden" onChange={onPhoto} />
+          </label>
+        )}
+      </div>
+
+      {/* doodle */}
+      <div className="mt-2 rounded-2xl border border-(--line) bg-(--card) p-3 shadow-sm">
+        <button onClick={() => setShowDoodle(!showDoodle)} className="w-full text-left text-sm font-bold">
+          🖌️ Doodle your day {showDoodle ? '▾' : '▸'}
+        </button>
+        {showDoodle && (
+          <div className="mt-2">
+            <DoodlePad key={entry?.id ?? 'new'} initial={doodle} onChange={onDoodle} />
+          </div>
+        )}
       </div>
 
       {/* mood */}
@@ -141,6 +216,8 @@ export default function Diary() {
                 <p className="mb-1 text-[11px] italic text-(--muted)">💭 {e.prompt_text}</p>
               )}
               <p className="whitespace-pre-wrap text-sm leading-[1.6em]">{e.text}</p>
+              {e.photo && <img src={e.photo} alt="" className="mt-2 w-full rounded-xl" />}
+              {e.doodle && <img src={e.doodle} alt="doodle" className="mt-2 w-full rounded-xl border border-(--line)" />}
             </article>
           ))}
         </div>

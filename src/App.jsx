@@ -4,6 +4,7 @@ import Diary from './screens/Diary.jsx';
 import History from './screens/History.jsx';
 import Insights from './screens/Insights.jsx';
 import MemoryBook from './screens/MemoryBook.jsx';
+import Recap from './screens/Recap.jsx';
 import Settings from './screens/Settings.jsx';
 import Stickers from './screens/Stickers.jsx';
 import Today from './screens/Today.jsx';
@@ -31,6 +32,7 @@ export default function App() {
             <Route path="/insights" element={<Insights />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/memory-book" element={<MemoryBook />} />
+            <Route path="/recap" element={<Recap />} />
             <Route path="*" element={<Navigate to="/today" replace />} />
           </Routes>
         </main>

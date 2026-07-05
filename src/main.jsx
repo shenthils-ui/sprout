@@ -12,7 +12,8 @@ const basename = import.meta.env.BASE_URL.replace(/\/+$/, '') || '/';
 const root = createRoot(document.getElementById('root'));
 
 initApi()
-  .then(() => {
+  .then((api) => {
+    window.sproutApi = api; // handy for debugging & the verify script
     root.render(
       <React.StrictMode>
         <BrowserRouter basename={basename}>

@@ -96,11 +96,13 @@ export default function History() {
               />
             ))}
           </div>
-          {day.diary.filter((e) => e.text).map((e) => (
+          {day.diary.filter((e) => e.text || e.photo || e.doodle).map((e) => (
             <article key={e.id} className="journal-lines mt-3 rounded-2xl p-3"
               style={{ background: 'var(--tint)' }}>
               <p className="text-xs font-bold">📔 Diary {e.mood && <span className="text-base">{e.mood}</span>}</p>
               <p className="mt-1 whitespace-pre-wrap text-sm leading-[1.6em]">{e.text}</p>
+              {e.photo && <img src={e.photo} alt="" className="mt-2 w-full rounded-xl" />}
+              {e.doodle && <img src={e.doodle} alt="doodle" className="mt-2 w-full rounded-xl" />}
             </article>
           ))}
         </div>
@@ -115,21 +117,47 @@ export default function History() {
           </div>
         ) : (
           <div className="mt-2 flex flex-col gap-2">
-            {books.map((b) => (
-              <div key={b.title} className="rounded-2xl border border-(--line) bg-(--card) p-3 shadow-sm">
-                <div className="flex items-baseline justify-between">
-                  <p className="font-bold text-sm">{b.title}</p>
-                  <p className="text-xs text-(--muted)">{b.pages} pages · {b.days} day{b.days > 1 ? 's' : ''}</p>
+            {books.map((b) => {
+              const pct = b.total_pages
+                ? Math.min(1, b.pages / b.total_pages)
+                : Math.max(0.06, b.pages / maxPages);
+              return (
+                <div key={b.title} className="rounded-2xl border border-(--line) bg-(--card) p-3 shadow-sm">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-sm font-bold">{b.finished && '🎉 '}{b.title}</p>
+                    <p className="shrink-0 text-xs text-(--muted)">
+                      {b.total_pages
+                        ? b.finished
+                          ? 'finished!'
+                          : `${b.pages}/${b.total_pages} pages · ${Math.round(pct * 100)}%`
+                        : `${b.pages} pages · ${b.days} day${b.days > 1 ? 's' : ''}`}
+                    </p>
+                  </div>
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-(--line)">
+                    <div className="h-full rounded-full"
+                      style={{
+                        width: `${pct * 100}%`,
+                        background: 'linear-gradient(90deg, var(--accent), var(--accent-2))',
+                      }} />
+                  </div>
+                  {!b.finished && (
+                    <button onClick={async () => {
+                      const v = window.prompt(
+                        `How many pages does "${b.title}" have in total?`,
+                        b.total_pages ?? '');
+                      if (v === null) return;
+                      const n = parseInt(v, 10);
+                      const res = await getApi().setBookGoal({
+                        title: b.title, total_pages: Number.isFinite(n) && n > 0 ? n : null });
+                      celebrate(res.newBadges);
+                      setBooks(await getApi().getReadingLog());
+                    }} className="mt-1.5 text-[11px] font-bold text-(--accent)">
+                      {b.total_pages ? '✏️ change goal' : '🎯 set a page goal'}
+                    </button>
+                  )}
                 </div>
-                <div className="mt-2 h-2 overflow-hidden rounded-full bg-(--line)">
-                  <div className="h-full rounded-full"
-                    style={{
-                      width: `${Math.max(6, (b.pages / maxPages) * 100)}%`,
-                      background: 'linear-gradient(90deg, var(--accent), var(--accent-2))',
-                    }} />
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

@@ -1,26 +1,37 @@
 import { useCallback, useEffect, useState } from 'react';
-import { addDays, todayStr } from '../../shared/dates.js';
+import { Link } from 'react-router-dom';
+import { dayIndex, addDays, todayStr } from '../../shared/dates.js';
+import { RIDDLES } from '../../shared/riddles.js';
 import { getApi } from '../api/index.js';
 import { useCelebrate } from '../components/Celebration.jsx';
 import Companion from '../components/Companion.jsx';
+import PipStudio from '../components/PipStudio.jsx';
 import ProgressRing from '../components/ProgressRing.jsx';
+import QuizModal from '../components/QuizModal.jsx';
 import TaskRow from '../components/TaskRow.jsx';
 import { friendlyDate, wordOfTheDay } from '../lib/daily.js';
+import { parsePipStyle } from '../lib/decorations.js';
 
 export default function Today() {
   const [date, setDate] = useState(todayStr());
   const [day, setDay] = useState(null);
   const [companion, setCompanion] = useState(null);
   const [offline, setOffline] = useState(false);
+  const [pipStyle, setPipStyle] = useState({});
+  const [showStudio, setShowStudio] = useState(false);
+  const [showQuiz, setShowQuiz] = useState(false);
+  const [showAnswer, setShowAnswer] = useState(false);
   const celebrate = useCelebrate();
   const isToday = date === todayStr();
 
   const load = useCallback(async () => {
     try {
       const api = getApi();
-      const [d, c] = await Promise.all([api.getDay({ date }), api.getCompanion()]);
+      const [d, c, s] = await Promise.all([
+        api.getDay({ date }), api.getCompanion(), api.getSettings()]);
       setDay(d);
       setCompanion(c);
+      setPipStyle(parsePipStyle(s));
       setOffline(false);
     } catch (e) {
       if (e.name === 'ServerUnreachableError') setOffline(true);
@@ -29,6 +40,7 @@ export default function Today() {
   }, [date]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => { setShowAnswer(false); }, [date]);
 
   const afterChange = (result) => {
     celebrate(result?.newBadges);
@@ -73,7 +85,7 @@ export default function Today() {
       {/* companion + progress */}
       <div className="mt-2 flex items-center justify-around rounded-3xl p-2"
         style={{ background: 'linear-gradient(135deg, var(--tint), transparent)' }}>
-        <Companion companion={companion} />
+        <Companion companion={companion} style={pipStyle} onTap={() => setShowStudio(true)} />
         {day && (
           <div className="flex flex-col items-center gap-1">
             <ProgressRing done={day.progress.done} total={day.progress.applicable} size={72} />
@@ -86,12 +98,39 @@ export default function Today() {
         )}
       </div>
 
-      {/* word / fact of the day */}
+      {/* daily fun: word/fact + riddle + quiz */}
       <div className="mt-3 rounded-2xl border border-(--line) bg-(--card) p-3 text-sm shadow-sm">
         {word.type === 'word' ? (
           <p><span className="mr-1">💡</span> <b className="text-(--accent)">{word.word}</b> — {word.def}</p>
         ) : (
           <p><span className="mr-1">🤯</span> {word.fact}</p>
+        )}
+        {(() => {
+          const riddle = RIDDLES[dayIndex(date) % RIDDLES.length];
+          return (
+            <p className="mt-2 border-t border-(--line) pt-2">
+              <span className="mr-1">🧩</span> {riddle.q}{' '}
+              {showAnswer
+                ? <b className="text-(--accent) anim-pop inline-block">{riddle.a}</b>
+                : <button onClick={() => setShowAnswer(true)}
+                    className="rounded-full bg-(--tint) px-2 py-0.5 text-xs font-bold text-(--accent)">
+                    reveal!
+                  </button>}
+            </p>
+          );
+        })()}
+        {isToday && (
+          <div className="mt-2 flex gap-2 border-t border-(--line) pt-2">
+            <button onClick={() => setShowQuiz(true)}
+              className="flex-1 rounded-full py-2 text-xs font-bold text-white active:scale-95 transition-transform"
+              style={{ background: 'linear-gradient(90deg, var(--accent), var(--accent-2))' }}>
+              🧠 Quiz Corner
+            </button>
+            <Link to="/recap"
+              className="flex-1 rounded-full border-2 border-(--line) py-2 text-center text-xs font-bold active:scale-95 transition-transform">
+              ✨ My week
+            </Link>
+          </div>
         )}
       </div>
 
@@ -111,6 +150,12 @@ export default function Today() {
           </div>
         )}
       </div>
+
+      {showQuiz && <QuizModal onClose={() => setShowQuiz(false)} />}
+      {showStudio && (
+        <PipStudio style={pipStyle} onChange={setPipStyle}
+          onClose={() => setShowStudio(false)} />
+      )}
     </div>
   );
 }

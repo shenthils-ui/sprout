@@ -1,8 +1,15 @@
 # 🌱 Sprout
 
 A fun, private, local-first daily task tracker + diary for kids — with Pip,
-a little companion sprout that grows as you go. No cloud, no accounts, no
-tracking. All data stays on your own devices.
+a little companion sprout that grows as you go (and can be dressed up with
+outfits unlocked by stickers). No cloud, no accounts, no tracking. All data
+stays on your own devices.
+
+Inside: daily tasks with a practice timer, a diary with rotating writing
+prompts, mood emoji, photo-of-the-day and a doodle pad, a word + riddle of
+the day, a 3-question Quiz Corner, reading goals per book, a sticker book
+(23 badges), a weekly recap card, a history calendar with a Daylio-style
+"year in moods", and a printable Memory Book.
 
 One codebase, two ways to run it:
 
