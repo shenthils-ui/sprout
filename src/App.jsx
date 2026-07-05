@@ -1,9 +1,13 @@
+import { useState } from 'react';
 import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
 import { CelebrationProvider } from './components/Celebration.jsx';
+import WelcomeTour, { shouldShowTour } from './components/WelcomeTour.jsx';
 import Diary from './screens/Diary.jsx';
+import Guide from './screens/Guide.jsx';
 import History from './screens/History.jsx';
 import Insights from './screens/Insights.jsx';
 import MemoryBook from './screens/MemoryBook.jsx';
+import Recap from './screens/Recap.jsx';
 import Settings from './screens/Settings.jsx';
 import Stickers from './screens/Stickers.jsx';
 import Today from './screens/Today.jsx';
@@ -18,8 +22,10 @@ const TABS = [
 ];
 
 export default function App() {
+  const [tour, setTour] = useState(shouldShowTour);
   return (
     <CelebrationProvider>
+      {tour && <WelcomeTour onClose={() => setTour(false)} />}
       <div className="mx-auto flex min-h-dvh max-w-lg flex-col">
         <main className="flex-1 px-4 pb-24 pt-3">
           <Routes>
@@ -31,6 +37,8 @@ export default function App() {
             <Route path="/insights" element={<Insights />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="/memory-book" element={<MemoryBook />} />
+            <Route path="/recap" element={<Recap />} />
+            <Route path="/guide" element={<Guide />} />
             <Route path="*" element={<Navigate to="/today" replace />} />
           </Routes>
         </main>

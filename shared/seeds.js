@@ -8,6 +8,12 @@ export const SEED_TASKS = [
   { name: 'Arrange wardrobe', emoji: '👗', kind: 'check', has_note: false },
   { name: 'Yoga', emoji: '🧘', kind: 'check', has_note: false },
   { name: 'Miobrace', emoji: '😴', kind: 'check', has_note: false },
+  { name: 'Sleep', emoji: '🛌', kind: 'count', unit: 'hours', has_note: false },
+  { name: 'Water', emoji: '💧', kind: 'count', unit: 'glasses', has_note: false },
+  { name: 'Fruits & veggies', emoji: '🍎', kind: 'count', unit: 'servings', has_note: false },
+  { name: 'Screen time', emoji: '📺', kind: 'count', unit: 'hours', has_note: false },
+  { name: 'Treats', emoji: '🍪', kind: 'count', unit: 'treats', has_note: false },
+  { name: 'Toilet', emoji: '🚽', kind: 'check', has_note: false },
 ];
 
 // 36 gentle, age-appropriate writing prompts. Rotation: one per day by date,

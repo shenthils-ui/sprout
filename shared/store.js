@@ -50,6 +50,35 @@ export function createStore(db) {
     return { stage, points, todayActive };
   }
 
+  // Book pages come from the reading log; when a book with a goal reaches its
+  // total, stamp finished_at (never un-stamp — celebrations are permanent).
+  function syncFinishedBooks() {
+    const books = db.prepare(
+      `SELECT * FROM books WHERE total_pages > 0 AND finished_at IS NULL`).all();
+    for (const b of books) {
+      const pages = db.prepare(`SELECT COALESCE(SUM(l.count),0) AS n FROM logs l
+        JOIN tasks t ON t.id = l.task_id
+        WHERE t.unit = 'pages' AND TRIM(COALESCE(l.note,'')) = ?`).get(b.title).n;
+      if (pages >= b.total_pages) {
+        db.prepare('UPDATE books SET finished_at = ? WHERE id = ?').run(now(), b.id);
+      }
+    }
+  }
+
+  // Longest run of consecutive days with any activity (tasks or diary).
+  function consecutiveActiveDays() {
+    const rows = db.prepare(`SELECT DISTINCT date FROM (
+      SELECT date FROM logs WHERE status IS NOT NULL OR count > 0
+      UNION SELECT date FROM diary WHERE text != '') ORDER BY date`).all();
+    let best = 0, run = 0, prev = null;
+    for (const { date } of rows) {
+      run = prev && addDays(prev, 1) === date ? run + 1 : 1;
+      if (run > best) best = run;
+      prev = date;
+    }
+    return best;
+  }
+
   function gatherBadgeStats() {
     const q = (sql) => db.prepare(sql).get();
     const totalDone = q(`SELECT COUNT(*) AS n FROM logs WHERE status='done' OR count > 0`).n;
@@ -65,6 +94,13 @@ export function createStore(db) {
       JOIN tasks t ON t.id = l.task_id
       WHERE l.status = 'done' AND LOWER(t.name) LIKE '%craft%'`).n;
     const moodsTagged = q(`SELECT COUNT(*) AS n FROM diary WHERE mood IS NOT NULL AND mood != ''`).n;
+    const waterTotal = q(`SELECT COALESCE(SUM(l.count),0) AS n FROM logs l
+      JOIN tasks t ON t.id = l.task_id WHERE t.unit = 'glasses'`).n;
+    const quizCorrect = q(`SELECT COALESCE(SUM(correct),0) AS n FROM quiz_results`).n;
+    const doodles = q(`SELECT COUNT(*) AS n FROM diary WHERE doodle IS NOT NULL`).n;
+    const photos = q(`SELECT COUNT(*) AS n FROM diary WHERE photo IS NOT NULL`).n;
+    syncFinishedBooks();
+    const booksFinished = q(`SELECT COUNT(*) AS n FROM books WHERE finished_at IS NOT NULL`).n;
 
     let bestStreak = 0;
     const tasks = db.prepare('SELECT * FROM tasks WHERE active = 1').all();
@@ -76,6 +112,8 @@ export function createStore(db) {
     return {
       totalDone, diaryEntries, activeDays, bestStreak, pagesTotal,
       musicMinutes, craftsDone, moodsTagged, companionStage: companion().stage,
+      waterTotal, quizCorrect, doodles, photos, booksFinished,
+      consecutiveActiveDays: consecutiveActiveDays(),
     };
   }
 
@@ -186,15 +224,19 @@ export function createStore(db) {
     },
 
     // ---------- diary ----------
-    saveDiary({ id = null, date, text = '', prompt_text = null, mood = null }) {
+    saveDiary({ id = null, date, text = '', prompt_text = null, mood = null,
+                photo = null, doodle = null }) {
       if (id) {
-        db.prepare(`UPDATE diary SET text = ?, prompt_text = ?, mood = ?, updated_at = ?
-          WHERE id = ?`).run(text, prompt_text, mood, now(), id);
+        db.prepare(`UPDATE diary SET text = ?, prompt_text = ?, mood = ?,
+          photo = ?, doodle = ?, updated_at = ? WHERE id = ?`)
+          .run(text, prompt_text, mood, photo, doodle, now(), id);
         const entry = db.prepare('SELECT * FROM diary WHERE id = ?').get(id);
         return { entry, newBadges: store.checkBadges().newBadges };
       }
-      const r = db.prepare(`INSERT INTO diary (date, text, prompt_text, mood, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?)`).run(date, text, prompt_text, mood, now(), now());
+      const r = db.prepare(`INSERT INTO diary
+        (date, text, prompt_text, mood, photo, doodle, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+        .run(date, text, prompt_text, mood, photo, doodle, now(), now());
       const entry = db.prepare('SELECT * FROM diary WHERE id = ?').get(r.lastInsertRowid);
       return { entry, newBadges: store.checkBadges().newBadges };
     },
@@ -205,12 +247,14 @@ export function createStore(db) {
     },
 
     listDiary({ limit = 30, before = null } = {}) {
-      // Paged, newest first, only non-empty entries — the scrapbook view.
+      // Paged, newest first, only non-empty entries (text, photo or doodle
+      // counts) — the scrapbook view.
+      const nonEmpty = `(text != '' OR photo IS NOT NULL OR doodle IS NOT NULL)`;
       if (before) {
-        return db.prepare(`SELECT * FROM diary WHERE text != '' AND date < ?
+        return db.prepare(`SELECT * FROM diary WHERE ${nonEmpty} AND date < ?
           ORDER BY date DESC, id DESC LIMIT ?`).all(before, limit);
       }
-      return db.prepare(`SELECT * FROM diary WHERE text != ''
+      return db.prepare(`SELECT * FROM diary WHERE ${nonEmpty}
         ORDER BY date DESC, id DESC LIMIT ?`).all(limit);
     },
 
@@ -261,7 +305,7 @@ export function createStore(db) {
       for (const date of monthDays(month)) {
         if (date > today) continue;
         const { progress, diary } = store.getDay({ date });
-        const hasDiary = diary.some((e) => e.text !== '');
+        const hasDiary = diary.some((e) => e.text !== '' || e.photo || e.doodle);
         const hasAnything = db.prepare(
           'SELECT 1 FROM logs WHERE date = ? LIMIT 1').get(date);
         if (progress.done > 0 || hasDiary || hasAnything) {
@@ -277,11 +321,15 @@ export function createStore(db) {
     },
 
     getReadingLog() {
-      // Books from any "pages" count task, grouped by note (book title).
+      // Books from any "pages" count task, grouped by note (book title),
+      // merged with per-book goals from the books table.
+      syncFinishedBooks();
       const rows = db.prepare(`SELECT l.note, l.date, l.count FROM logs l
         JOIN tasks t ON t.id = l.task_id
         WHERE t.unit = 'pages' AND l.count > 0
         ORDER BY l.date`).all();
+      const goals = new Map(db.prepare('SELECT * FROM books').all()
+        .map((b) => [b.title, b]));
       const books = new Map();
       for (const r of rows) {
         const title = (r.note || '').trim() || 'Untitled reading';
@@ -293,7 +341,42 @@ export function createStore(db) {
         b.days += 1;
         b.last = r.date;
       }
-      return [...books.values()].sort((a, b) => (a.last < b.last ? 1 : -1));
+      return [...books.values()].map((b) => {
+        const g = goals.get(b.title);
+        return {
+          ...b,
+          total_pages: g?.total_pages ?? null,
+          finished: !!g?.finished_at,
+        };
+      }).sort((a, b) => (a.last < b.last ? 1 : -1));
+    },
+
+    setBookGoal({ title, total_pages }) {
+      const t = title.trim();
+      if (!t) throw new Error('Book title missing');
+      if (!total_pages) {
+        db.prepare('DELETE FROM books WHERE title = ? AND finished_at IS NULL').run(t);
+      } else {
+        db.prepare(`INSERT INTO books (title, total_pages) VALUES (?, ?)
+          ON CONFLICT(title) DO UPDATE SET total_pages = excluded.total_pages`)
+          .run(t, total_pages);
+      }
+      return store.checkBadges();
+    },
+
+    // ---------- quiz corner ----------
+    getQuiz({ date }) {
+      return db.prepare('SELECT * FROM quiz_results WHERE date = ?').get(date) ?? null;
+    },
+
+    recordQuiz({ date, correct, total }) {
+      const prev = store.getQuiz({ date });
+      if (!prev || correct > prev.correct) {
+        db.prepare(`INSERT INTO quiz_results (date, correct, total) VALUES (?, ?, ?)
+          ON CONFLICT(date) DO UPDATE SET correct = excluded.correct, total = excluded.total`)
+          .run(date, correct, total);
+      }
+      return store.checkBadges();
     },
 
     // ---------- insights ----------
@@ -360,7 +443,7 @@ export function createStore(db) {
       const dump = (table) => db.prepare(`SELECT * FROM ${table}`).all();
       return {
         app: 'sprout',
-        format: 1,
+        format: 2,
         exported_at: now(),
         data: {
           tasks: dump('tasks'),
@@ -369,6 +452,8 @@ export function createStore(db) {
           prompts: dump('prompts'),
           earned_badges: dump('earned_badges'),
           settings: dump('settings'),
+          books: dump('books'),
+          quiz_results: dump('quiz_results'),
         },
       };
     },
@@ -379,7 +464,8 @@ export function createStore(db) {
       }
       const d = payload.data;
       const tx = db.transaction(() => {
-        for (const t of ['logs', 'diary', 'tasks', 'prompts', 'earned_badges', 'settings']) {
+        for (const t of ['logs', 'diary', 'tasks', 'prompts', 'earned_badges',
+                         'settings', 'books', 'quiz_results']) {
           db.prepare(`DELETE FROM ${t}`).run();
         }
         const insert = (table, rows, cols) => {
@@ -391,10 +477,12 @@ export function createStore(db) {
         insert('tasks', d.tasks, ['id', 'name', 'emoji', 'kind', 'unit', 'note_label',
           'has_note', 'expected_days', 'display_order', 'active']);
         insert('logs', d.logs, ['id', 'date', 'task_id', 'status', 'count', 'note', 'updated_at']);
-        insert('diary', d.diary, ['id', 'date', 'text', 'prompt_text', 'mood', 'created_at', 'updated_at']);
+        insert('diary', d.diary, ['id', 'date', 'text', 'prompt_text', 'mood', 'photo', 'doodle', 'created_at', 'updated_at']);
         insert('prompts', d.prompts, ['id', 'text', 'active']);
         insert('earned_badges', d.earned_badges, ['badge_id', 'earned_at']);
         insert('settings', d.settings, ['key', 'value']);
+        insert('books', d.books, ['id', 'title', 'total_pages', 'finished_at']);
+        insert('quiz_results', d.quiz_results, ['date', 'correct', 'total']);
       });
       tx();
       return { ok: true, counts: {

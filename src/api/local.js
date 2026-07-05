@@ -41,7 +41,7 @@ export async function createLocalApi() {
   const READ_ONLY = new Set([
     'listTasks', 'getDay', 'listDiary', 'listPrompts', 'getBadges',
     'getCompanion', 'getMonth', 'getReadingLog', 'getInsights',
-    'getSettings', 'exportData',
+    'getSettings', 'exportData', 'getQuiz',
   ]);
 
   // If this was a fresh database, persist the seeded state right away.

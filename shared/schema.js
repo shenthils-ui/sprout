@@ -3,7 +3,7 @@
 // - standalone: sql.js (WASM) in the phone's browser
 // Never change columns without bumping SCHEMA_VERSION and adding a migration.
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const SCHEMA_SQL = `
 CREATE TABLE IF NOT EXISTS meta (
@@ -43,10 +43,25 @@ CREATE TABLE IF NOT EXISTS diary (
   text TEXT NOT NULL DEFAULT '',
   prompt_text TEXT,                           -- the writing prompt shown for this entry
   mood TEXT,                                  -- optional emoji
+  photo TEXT,                                 -- optional photo (data URL, downscaled)
+  doodle TEXT,                                -- optional doodle (data URL)
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_diary_date ON diary(date);
+
+CREATE TABLE IF NOT EXISTS books (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  title TEXT NOT NULL UNIQUE,                 -- matches the reading log note
+  total_pages INTEGER,                        -- the goal; NULL = no goal set
+  finished_at TEXT                            -- set when pages read reach the goal
+);
+
+CREATE TABLE IF NOT EXISTS quiz_results (
+  date TEXT PRIMARY KEY,                      -- one row per day, best score kept
+  correct INTEGER NOT NULL,
+  total INTEGER NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS prompts (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,6 +80,15 @@ CREATE TABLE IF NOT EXISTS settings (
 );
 `;
 
+// Adds a column to an existing table if it's missing (both engines support
+// pragma_table_info as a queryable table function).
+function ensureColumn(db, table, column, ddl) {
+  const cols = db.prepare(`SELECT name FROM pragma_table_info(?)`).all(table);
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${ddl}`);
+  }
+}
+
 // Applies schema + seeds on a fresh or existing db. Works with better-sqlite3
 // and with the sql.js shim (same API).
 export function migrate(db, seeds) {
@@ -73,8 +97,14 @@ export function migrate(db, seeds) {
   if (!row) {
     db.prepare(`INSERT INTO meta (key, value) VALUES ('schema_version', ?)`)
       .run(String(SCHEMA_VERSION));
+  } else if (Number(row.value) < SCHEMA_VERSION) {
+    // v1 -> v2: photo/doodle on diary; books + quiz_results tables come from
+    // SCHEMA_SQL's CREATE IF NOT EXISTS above.
+    ensureColumn(db, 'diary', 'photo', 'TEXT');
+    ensureColumn(db, 'diary', 'doodle', 'TEXT');
+    db.prepare(`UPDATE meta SET value = ? WHERE key='schema_version'`)
+      .run(String(SCHEMA_VERSION));
   }
-  // future: if (Number(row.value) < SCHEMA_VERSION) run migrations here
 
   const taskCount = db.prepare('SELECT COUNT(*) AS n FROM tasks').get().n;
   if (taskCount === 0 && seeds?.tasks) {

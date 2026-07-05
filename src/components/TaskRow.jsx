@@ -4,6 +4,42 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+// Forest-style focus timer for minute-based tasks: press play, practice,
+// press stop — the minutes fill themselves in.
+function PracticeTimer({ onDone }) {
+  const [startedAt, setStartedAt] = useState(null);
+  const [, tick] = useState(0);
+
+  useEffect(() => {
+    if (!startedAt) return;
+    const t = setInterval(() => tick((n) => n + 1), 1000);
+    return () => clearInterval(t);
+  }, [startedAt]);
+
+  if (!startedAt) {
+    return (
+      <button onClick={(e) => { e.stopPropagation(); setStartedAt(Date.now()); }}
+        className="mt-1 rounded-full bg-(--tint) px-2.5 py-1 text-[11px] font-bold text-(--accent)">
+        ▶ start timer
+      </button>
+    );
+  }
+  const secs = Math.floor((Date.now() - startedAt) / 1000);
+  const mm = String(Math.floor(secs / 60)).padStart(2, '0');
+  const ss = String(secs % 60).padStart(2, '0');
+  return (
+    <button onClick={(e) => {
+      e.stopPropagation();
+      setStartedAt(null);
+      onDone(Math.max(1, Math.round(secs / 60)));
+    }}
+      className="mt-1 rounded-full px-2.5 py-1 text-[11px] font-bold text-white anim-pop"
+      style={{ background: 'var(--accent)' }}>
+      ⏹ {mm}:{ss} — stop &amp; add
+    </button>
+  );
+}
+
 export default function TaskRow({ task, log, onCheck, onCount }) {
   const status = log?.status ?? null;
   const isDone = status === 'done' || (log?.count ?? 0) > 0;
@@ -81,6 +117,7 @@ export default function TaskRow({ task, log, onCheck, onCount }) {
 
   // 'count' task
   const num = count === '' ? 0 : Number(count) || 0;
+  const isMinutes = /min/i.test(task.unit || '');
   return (
     <div className="relative w-full rounded-3xl border-2 p-4 shadow-sm" style={doneStyle}>
       {sparkles.map((id) => (
@@ -91,6 +128,9 @@ export default function TaskRow({ task, log, onCheck, onCount }) {
         <div className="flex-1 min-w-0">
           <p className="font-bold">{task.name}</p>
           <p className="text-xs text-(--muted)">{task.unit}</p>
+          {isMinutes && (
+            <PracticeTimer onDone={(mins) => scheduleCount(num + mins, note)} />
+          )}
         </div>
         <div className="flex items-center gap-1.5">
           <button onClick={() => scheduleCount(Math.max(0, num - 1) || '', note)}

@@ -56,6 +56,8 @@ export default function MemoryBook() {
             </header>
             {e.prompt_text && <p className="mt-1 text-[11px] italic text-(--muted)">💭 {e.prompt_text}</p>}
             <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed">{e.text}</p>
+            {e.photo && <img src={e.photo} alt="" className="mt-2 w-full rounded-xl" />}
+            {e.doodle && <img src={e.doodle} alt="doodle" className="mt-2 w-full rounded-xl border border-(--line)" />}
           </article>
         ))}
       </div>

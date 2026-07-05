@@ -4,15 +4,57 @@ import { useEffect, useState } from 'react';
 import { addDays, todayStr } from '../../shared/dates.js';
 import { getApi } from '../api/index.js';
 
+// Daylio-style "Year in Pixels": one dot per day, colored by mood.
+function MoodPixels({ entries }) {
+  const year = todayStr().slice(0, 4);
+  const byDate = new Map(entries.filter((e) => e.mood && e.date.startsWith(year))
+    .map((e) => [e.date, e.mood]));
+  if (byDate.size === 0) return null;
+  const months = Array.from({ length: 12 }, (_, m) => m + 1);
+  return (
+    <div className="mt-3 rounded-2xl border border-(--line) bg-(--card) p-3 shadow-sm">
+      <p className="text-sm font-bold">🌈 {year} in moods</p>
+      <div className="mt-2 overflow-x-auto">
+        <table className="border-separate" style={{ borderSpacing: 2 }}>
+          <tbody>
+            {months.map((m) => (
+              <tr key={m}>
+                <td className="pr-1 text-[9px] font-bold text-(--muted)">
+                  {new Date(2000, m - 1, 1).toLocaleDateString(undefined, { month: 'short' })}
+                </td>
+                {Array.from({ length: 31 }, (_, d) => {
+                  const date = `${year}-${String(m).padStart(2, '0')}-${String(d + 1).padStart(2, '0')}`;
+                  const mood = byDate.get(date);
+                  return (
+                    <td key={d} title={mood ? `${date} ${mood}` : date}
+                      className="h-3.5 w-3.5 rounded-[4px] text-center align-middle text-[9px] leading-none"
+                      style={{ background: mood ? 'var(--tint)' : 'var(--bg)' }}>
+                      {mood ?? ''}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export default function Insights() {
   const [range, setRange] = useState('week');
   const [data, setData] = useState(null);
+  const [allEntries, setAllEntries] = useState([]);
   const to = todayStr();
   const from = addDays(to, range === 'week' ? -6 : -29);
 
   useEffect(() => {
     getApi().getInsights({ from, to }).then(setData).catch(console.error);
   }, [from, to]);
+  useEffect(() => {
+    getApi().listDiary({ limit: 400 }).then(setAllEntries).catch(console.error);
+  }, []);
 
   return (
     <div className="anim-rise">
@@ -64,6 +106,8 @@ export default function Insights() {
                   {data.diary.topMood && <> · most common mood: <span className="text-base">{data.diary.topMood}</span></>}</>}
             </p>
           </div>
+
+          <MoodPixels entries={allEntries} />
 
           <p className="mt-4 text-center text-[11px] text-(--muted)">
             Streaks here are counted kindly — one missed day never breaks them. 💛
