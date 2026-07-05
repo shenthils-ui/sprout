@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { todayStr } from '../../shared/dates.js';
 import { getApi, IS_STANDALONE } from '../api/index.js';
 import PinGate from '../components/PinGate.jsx';
@@ -296,10 +297,25 @@ function AboutSection() {
   );
 }
 
+function GuideSection() {
+  return (
+    <Link to="/guide"
+      className="mt-4 flex items-center gap-3 rounded-3xl border border-(--line) bg-(--card) p-4 shadow-sm active:scale-[0.98] transition-transform">
+      <span className="text-2xl">📖</span>
+      <span className="flex-1">
+        <span className="block font-extrabold">How Sprout works</span>
+        <span className="block text-xs text-(--muted)">Every feature explained — tasks, diary, Pip, stickers &amp; more</span>
+      </span>
+      <span className="text-(--muted)">→</span>
+    </Link>
+  );
+}
+
 export default function Settings() {
   return (
     <div className="anim-rise">
       <h1 className="text-lg font-extrabold">⚙️ Settings</h1>
+      <GuideSection />
       <ThemeSection />
       <AboutSection />
       <div className="mt-6 border-t-2 border-dashed border-(--line) pt-2">

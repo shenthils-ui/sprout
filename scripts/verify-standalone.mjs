@@ -62,9 +62,14 @@ const ok = (name, cond, extra = '') => {
 };
 page.on('pageerror', (e) => failures.push(`pageerror: ${e.message}`));
 
-// --- 2. first load: app boots and seeds itself ---
+// --- 2. first load: app boots, welcome tour greets, app seeds itself ---
 await page.goto(`http://localhost:${PORT}${BASE}/`, { waitUntil: 'load' });
 await page.waitForSelector('text=Reading', { timeout: 20000 });
+ok('welcome tour appears on first launch',
+  (await page.locator("text=Hi! I'm Pip!").count()) === 1);
+for (let i = 0; i < 3; i++) await page.locator('button', { hasText: 'Next →' }).click();
+await page.locator('button', { hasText: "Let's go!" }).click();
+ok('welcome tour completes', (await page.locator("text=Hi! I'm Pip!").count()) === 0);
 ok('app boots at subpath and seeds 7 tasks',
   (await page.locator('text=Piano practice').count()) === 1 &&
   (await page.locator('text=Miobrace').count()) === 1);
@@ -95,6 +100,8 @@ ok('diary autosaved', (await page.locator('text=saved ✓').count()) > 0 ||
 // --- 5. full reload: everything must come back from IndexedDB ---
 await page.reload({ waitUntil: 'load' });
 await page.waitForSelector('textarea', { timeout: 15000 });
+ok('welcome tour does NOT reappear after reload',
+  (await page.locator("text=Hi! I'm Pip!").count()) === 0);
 const diaryText = await page.locator('textarea').inputValue();
 ok('diary text persists after full reload', diaryText.includes('standalone build works'));
 ok('mood persists after reload', (await page.locator('button.anim-pop:has-text("😄")').count()) > 0 ||
@@ -126,6 +133,13 @@ for (const [href, marker] of [
   await page.waitForSelector(`text=${marker}`, { timeout: 10000 });
   ok(`screen ${href} renders`, true);
 }
+await page.locator('a[href$="/guide"]').click();
+await page.waitForSelector('text=How Sprout works', { timeout: 10000 });
+await page.locator('button', { hasText: 'Diary — your private book' }).click();
+ok('in-app guide opens from Settings and sections expand',
+  (await page.locator('text=Writing prompt').count()) === 1);
+await page.locator('a[href$="/settings"]').first().click();
+await page.waitForSelector('text=Make it yours');
 
 // --- 7b. new features: riddle, quiz corner, dress-up, book goal, recap ---
 await page.locator('a[href$="/today"]').click();
