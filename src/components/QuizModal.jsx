@@ -1,14 +1,14 @@
-// Quiz Corner: 3 multiple-choice questions built from the word-of-the-day
-// bank. The day's first round uses date-seeded questions; replays shuffle.
-// Best score of the day is recorded (badges: Quiz Whiz / Quiz Master).
+// Quiz Corner: 3 quick questions a day — one fun trivia, one true/false,
+// one emoji puzzle. The day's first round is the same for everyone (seeded
+// by the date); replays are random. Best score of the day is recorded
+// (badges: Quiz Whiz / Quiz Master). Wrong answers are always framed as
+// learning something new — never as failure.
 
 import { useMemo, useState } from 'react';
 import { dayIndex, todayStr } from '../../shared/dates.js';
-import { WORDS_AND_FACTS } from '../../shared/words.js';
+import { buildRound } from '../../shared/quiz.js';
 import { getApi } from '../api/index.js';
 import { useCelebrate } from './Celebration.jsx';
-
-const WORDS = WORDS_AND_FACTS.filter((w) => w.type === 'word');
 
 function mulberry32(seed) {
   return () => {
@@ -19,20 +19,11 @@ function mulberry32(seed) {
   };
 }
 
-function buildQuestions(seed) {
-  const rand = mulberry32(seed);
-  const pool = [...WORDS];
-  const pick = () => pool.splice(Math.floor(rand() * pool.length), 1)[0];
-  return Array.from({ length: 3 }, () => {
-    const answer = pick();
-    const wrong = [pick(), pick(), pick()];
-    const options = [answer, ...wrong]
-      .map((w) => ({ w, r: rand() }))
-      .sort((a, b) => a.r - b.r)
-      .map(({ w }) => w);
-    return { answer, options };
-  });
-}
+const TYPE_LABEL = {
+  trivia: '🤓 Fun trivia',
+  tf: '🤔 True or false?',
+  emoji: '🧩 Emoji puzzle',
+};
 
 export default function QuizModal({ onClose }) {
   const [round, setRound] = useState(0); // 0 = today's seeded round
@@ -43,7 +34,7 @@ export default function QuizModal({ onClose }) {
   const celebrate = useCelebrate();
 
   const questions = useMemo(
-    () => buildQuestions(round === 0 ? dayIndex(todayStr()) : Math.floor(Math.random() * 1e9)),
+    () => buildRound(mulberry32(round === 0 ? dayIndex(todayStr()) : Math.floor(Math.random() * 1e9))),
     [round]);
   const q = questions[qi];
 
@@ -64,7 +55,7 @@ export default function QuizModal({ onClose }) {
         });
         celebrate(res.newBadges);
       }
-    }, 900);
+    }, q.why && !isRight ? 2000 : 1100);
   };
 
   const again = () => {
@@ -80,8 +71,10 @@ export default function QuizModal({ onClose }) {
               <h3 className="font-extrabold">🧠 Quiz Corner</h3>
               <span className="text-xs font-bold text-(--muted)">{qi + 1} / {questions.length}</span>
             </div>
-            <p className="mt-3 text-sm text-(--muted)">Which word means…</p>
-            <p className="mt-1 font-bold leading-snug">“{q.answer.def}”</p>
+            <p className="mt-3 text-xs font-bold uppercase tracking-wide text-(--accent)">
+              {TYPE_LABEL[q.type]}
+            </p>
+            <p className={`mt-1 font-bold leading-snug ${q.type === 'emoji' ? 'text-xl' : ''}`}>{q.q}</p>
             <div className="mt-4 flex flex-col gap-2">
               {q.options.map((opt) => {
                 let bg = 'var(--bg)';
@@ -90,20 +83,26 @@ export default function QuizModal({ onClose }) {
                   else if (opt === chosen) bg = 'var(--line)';
                 }
                 return (
-                  <button key={opt.word} onClick={() => choose(opt)}
+                  <button key={opt} onClick={() => choose(opt)}
                     className={`rounded-2xl border-2 px-4 py-3 text-left font-bold transition-transform active:scale-[0.98] ${
                       chosen && opt === q.answer ? 'anim-pop' : ''}`}
                     style={{
                       background: bg,
                       borderColor: chosen && opt === q.answer ? 'var(--accent)' : 'var(--line)',
                     }}>
-                    {opt.word}
+                    {opt}
                     {chosen && opt === q.answer && ' ✓'}
                     {chosen && opt === chosen && opt !== q.answer && ' 🌤️'}
                   </button>
                 );
               })}
             </div>
+            {chosen && q.why && (
+              <p className="anim-rise mt-3 rounded-xl p-2.5 text-xs font-semibold"
+                style={{ background: 'var(--tint)' }}>
+                💡 {q.why}
+              </p>
+            )}
           </>
         ) : (
           <div className="text-center">
@@ -112,9 +111,9 @@ export default function QuizModal({ onClose }) {
             </div>
             <h3 className="mt-2 text-xl font-extrabold">{correct} / {questions.length}</h3>
             <p className="mt-1 text-sm text-(--muted)">
-              {correct === 3 ? 'Perfect round — word wizard!'
-                : correct >= 1 ? 'Nice! Every answer teaches you a new word.'
-                : 'Tricky ones today — now you know three new words!'}
+              {correct === 3 ? 'Perfect round — quiz superstar!'
+                : correct >= 1 ? 'Nice! Wrong guesses just mean new fun facts.'
+                : 'Tricky ones today — now you know three new things!'}
             </p>
             <div className="mt-4 flex gap-2">
               <button onClick={again} className="flex-1 rounded-2xl border-2 border-(--line) py-2.5 font-bold">

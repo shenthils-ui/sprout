@@ -148,10 +148,10 @@ await page.locator('button', { hasText: 'reveal!' }).click();
 ok('riddle of the day reveals its answer', true);
 
 await page.locator('button', { hasText: 'Quiz Corner' }).click();
-await page.waitForSelector('text=Which word means');
+await page.waitForSelector('text=1 / 3');
 for (let i = 0; i < 3; i++) {
   await page.locator('.fixed button.rounded-2xl').first().click();
-  await page.waitForTimeout(1100);
+  await page.waitForTimeout(2300); // covers the "why" explanation pause
 }
 await page.waitForSelector('text=/ 3');
 ok('quiz corner plays a full 3-question round', true);
