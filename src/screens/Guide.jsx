@@ -20,7 +20,7 @@ const SECTIONS = [
   {
     emoji: '📔', title: 'Diary — your private book',
     items: [
-      ['💭 Writing prompt', 'A new idea every day to help you start. Don\'t like it? Tap 🎲 shuffle. You can also ignore it and write anything!'],
+      ['💭 Writing prompt', 'A new idea every day to help you start. Don\'t like it? Tap 🎲 shuffle. You can also ignore it and write anything! (Grown-ups can add custom prompts in Settings.)'],
       ['💾 Autosave', 'Everything saves by itself while you type. There is no save button because you don\'t need one.'],
       ['😄 Mood', 'Pick an emoji for how today felt. Totally optional.'],
       ['📸 Photo & 🖌️ doodle', 'Add one photo of your day, and draw a little doodle. They become part of your diary forever.'],
@@ -61,6 +61,7 @@ const SECTIONS = [
     items: [
       ['🎨 Make it yours', 'Pick your color theme and light/dark mode — this part is all yours, change it as often as you like.'],
       ['🔒 Grown-up corner', 'Behind the PIN: editing the task list, writing prompts, and backups. Ask your grown-up if a task needs changing.'],
+      ['💭 Writing prompts (grown-ups)', 'The idea bank the Diary picks from each day. Add your own prompts — ones about her hobbies, trips or friends work best — or tap "show all prompts" and ✕ to retire any. One prompt rotates in per day, plus the 🎲 shuffle button.'],
       ['💾 Backup (grown-ups)', 'Export JSON downloads every bit of data as one file; Import replaces everything with a backup file. This is how data moves between the phone and the laptop — the file works on both.'],
     ],
   },
