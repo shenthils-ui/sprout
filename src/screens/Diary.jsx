@@ -4,7 +4,7 @@ import { todayStr } from '../../shared/dates.js';
 import { getApi } from '../api/index.js';
 import { useCelebrate } from '../components/Celebration.jsx';
 import DoodlePad from '../components/DoodlePad.jsx';
-import { MOODS, promptOfTheDay, shortDate, shufflePrompt } from '../lib/daily.js';
+import { MOOD_NAMES, MOODS, promptOfTheDay, shortDate, shufflePrompt } from '../lib/daily.js';
 
 // Downscale a photo so entries stay small enough for the phone's database.
 function shrinkPhoto(file, maxSide = 1000) {
@@ -36,12 +36,15 @@ export default function Diary() {
   const [showDoodle, setShowDoodle] = useState(false);
   const [saved, setSaved] = useState('idle');    // idle | saving | saved
   const [history, setHistory] = useState([]);
+  const [hasMore, setHasMore] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const celebrate = useCelebrate();
   const debounce = useRef(null);
   const entryRef = useRef(null);
   const latest = useRef({});
-  latest.current = { text, mood, photo, doodle };
+  useEffect(() => {
+    latest.current = { text, mood, photo, doodle };
+  }, [text, mood, photo, doodle]);
 
   useEffect(() => {
     const api = getApi();
@@ -60,9 +63,18 @@ export default function Diary() {
           ? { text: today.prompt_text }
           : promptOfTheDay(ps, date));
         setHistory(hist.filter((e) => e.date !== date));
+        setHasMore(hist.length >= 60);
       })
       .catch(console.error);
   }, [date]);
+
+  const loadMore = async () => {
+    const oldest = history[history.length - 1];
+    if (!oldest) return;
+    const more = await getApi().listDiary({ limit: 60, before: oldest.date });
+    setHistory((h) => [...h, ...more]);
+    setHasMore(more.length >= 60);
+  };
 
   const save = useCallback(async (patch = {}) => {
     setSaved('saving');
@@ -177,6 +189,7 @@ export default function Diary() {
         <div className="mt-2 flex justify-between">
           {MOODS.map((m) => (
             <button key={m} onClick={() => onMood(m)}
+              aria-label={`Mood: ${MOOD_NAMES[m] ?? m}`} aria-pressed={mood === m}
               className={`h-10 w-10 rounded-full text-xl transition-all active:scale-90 ${
                 mood === m ? 'anim-pop scale-110' : 'opacity-60'}`}
               style={mood === m ? { background: 'var(--tint)', boxShadow: '0 0 0 2px var(--accent)' } : {}}>
@@ -220,6 +233,12 @@ export default function Diary() {
               {e.doodle && <img src={e.doodle} alt="doodle" className="mt-2 w-full rounded-xl border border-(--line)" />}
             </article>
           ))}
+          {hasMore && (
+            <button onClick={loadMore}
+              className="rounded-full border-2 border-(--line) py-2.5 text-sm font-bold text-(--muted)">
+              ▾ read even older entries
+            </button>
+          )}
         </div>
       )}
     </div>

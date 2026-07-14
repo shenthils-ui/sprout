@@ -66,6 +66,8 @@ export default function History() {
           return (
             <button key={d} onClick={() => !future && setSelected(d === selected ? null : d)}
               disabled={future}
+              aria-label={`${friendlyDate(d)}${info ? `, ${info.done} of ${info.applicable} done` : ''}${info?.hasDiary ? ', has diary entry' : ''}`}
+              aria-pressed={selected === d}
               className={`relative flex aspect-square flex-col items-center justify-center rounded-xl text-xs font-bold transition-transform active:scale-90 ${
                 future ? 'opacity-25' : ''} ${selected === d ? 'ring-2 ring-(--accent)' : ''}`}
               style={{

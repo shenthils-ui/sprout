@@ -1,7 +1,7 @@
 {
   "name": "sprout",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.2.0",
   "type": "module",
   "description": "Sprout — a fun daily task tracker + diary for kids. Local-first, no cloud.",
   "scripts": {
@@ -10,7 +10,9 @@
     "build:standalone": "vite build --mode standalone && node scripts/copy-404.mjs",
     "preview": "vite preview",
     "server": "node server/index.js",
-    "start": "npm run build && node server/index.js"
+    "start": "npm run build && node server/index.js",
+    "test": "node --test tests/store.test.mjs",
+    "lint": "eslint ."
   },
   "dependencies": {
     "better-sqlite3": "^11.10.0",
@@ -21,8 +23,12 @@
     "sql.js": "^1.13.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.1.0",
     "@vitejs/plugin-react": "^4.4.0",
+    "eslint": "^10.7.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "globals": "^17.7.0",
     "tailwindcss": "^4.1.0",
     "vite": "^6.3.5",
     "vite-plugin-pwa": "^1.0.0"

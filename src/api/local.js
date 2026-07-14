@@ -24,10 +24,26 @@ export async function createLocalApi() {
   // nothing is lost if Android kills the tab.
   let timer = null;
   let dirty = false;
+  let warned = false;
   const flush = async () => {
     if (!dirty) return;
     dirty = false;
-    await saveDbBytes(db.export());
+    try {
+      await saveDbBytes(db.export());
+    } catch (e) {
+      // Storage failure (quota, private mode, eviction): keep the data
+      // marked dirty so the next write retries, and tell the user once —
+      // silent data loss is the one unforgivable failure here.
+      dirty = true;
+      console.error('Sprout: failed to persist to IndexedDB', e);
+      if (!warned) {
+        warned = true;
+        window.dispatchEvent(new CustomEvent('sprout-persist-error', { detail: e }));
+        alert("Sprout couldn't save to this device's storage. " +
+          'Your changes are still in memory — please export a backup from ' +
+          'Settings before closing the app, and check free storage space.');
+      }
+    }
   };
   const schedulePersist = () => {
     dirty = true;

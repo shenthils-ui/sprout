@@ -284,6 +284,9 @@ export function createStore(db) {
     checkBadges() {
       const earnedRows = db.prepare('SELECT badge_id FROM earned_badges').all();
       const earnedIds = earnedRows.map((r) => r.badge_id);
+      // Every write triggers a badge check; once the whole catalog is earned
+      // there is nothing left to award, so skip the (relatively) heavy stats.
+      if (earnedIds.length >= BADGE_CATALOG.length) return { newBadges: [] };
       const fresh = newlyEarnedBadges(gatherBadgeStats(), earnedIds);
       for (const id of fresh) {
         db.prepare('INSERT OR IGNORE INTO earned_badges (badge_id, earned_at) VALUES (?, ?)')
@@ -461,6 +464,10 @@ export function createStore(db) {
     importData({ payload }) {
       if (!payload || payload.app !== 'sprout' || !payload.data) {
         throw new Error('Not a Sprout backup file');
+      }
+      if ((payload.format ?? 1) > 2) {
+        throw new Error('This backup is from a newer version of Sprout — ' +
+          'update this app first, then import again');
       }
       const d = payload.data;
       const tx = db.transaction(() => {

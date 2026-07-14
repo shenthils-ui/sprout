@@ -20,6 +20,11 @@ export function wordOfTheDay(dateStr) {
 
 export const MOODS = ['😄', '🙂', '😌', '🤩', '😴', '😢', '😠', '🤔'];
 
+export const MOOD_NAMES = {
+  '😄': 'happy', '🙂': 'good', '😌': 'calm', '🤩': 'excited',
+  '😴': 'sleepy', '😢': 'sad', '😠': 'angry', '🤔': 'thoughtful',
+};
+
 export function friendlyDate(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString(undefined, {

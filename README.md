@@ -66,9 +66,10 @@ The same works in reverse (laptop → phone).
 ## 4. For the parent
 
 - **Settings is PIN-locked** (you choose a 4-digit PIN the first time you open
-  it). It's a soft deterrent so tasks don't get rearranged by accident — not
-  real security. The **theme picker is outside the PIN** on purpose, so she
-  can restyle her app freely.
+  it; it's stored hashed and can be changed in Settings). It's a soft deterrent
+  so tasks don't get rearranged by accident — not real security. Forgot it?
+  See [Troubleshooting](docs/troubleshooting.md). The **theme picker is outside
+  the PIN** on purpose, so she can restyle her app freely.
 - **Tasks** are fully editable in Settings: name, emoji, check vs. count,
   unit, optional note, which weekdays it applies to, order. "Retire" hides a
   task but keeps its history; delete removes history too.
@@ -86,7 +87,19 @@ npm run dev               # dev server (start `npm run server` alongside for the
 npm run build             # server-mode frontend  -> dist/
 npm run build:standalone  # standalone PWA        -> dist-standalone/ (+404.html)
 npm run server            # Express + better-sqlite3 on :3000
+npm test                  # unit tests (shared data layer)
+npm run lint              # ESLint
 ```
+
+More documentation:
+
+- **[User guide](docs/user-guide.md)** — every feature and workflow (also
+  in-app: Settings → How Sprout works)
+- **[Developer guide](docs/developer-guide.md)** — architecture, folder
+  structure, testing, adding features
+- **[Troubleshooting](docs/troubleshooting.md)** — install issues, updates,
+  **forgot-PIN recovery**, data recovery
+- **[Changelog](CHANGELOG.md)**
 
 Architecture notes:
 

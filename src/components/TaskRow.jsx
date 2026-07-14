@@ -8,23 +8,23 @@ import { useEffect, useRef, useState } from 'react';
 // press stop — the minutes fill themselves in.
 function PracticeTimer({ onDone }) {
   const [startedAt, setStartedAt] = useState(null);
-  const [, tick] = useState(0);
+  const [secs, setSecs] = useState(0);
 
   useEffect(() => {
     if (!startedAt) return;
-    const t = setInterval(() => tick((n) => n + 1), 1000);
+    const t = setInterval(
+      () => setSecs(Math.floor((Date.now() - startedAt) / 1000)), 1000);
     return () => clearInterval(t);
   }, [startedAt]);
 
   if (!startedAt) {
     return (
-      <button onClick={(e) => { e.stopPropagation(); setStartedAt(Date.now()); }}
+      <button onClick={(e) => { e.stopPropagation(); setSecs(0); setStartedAt(Date.now()); }}
         className="mt-1 rounded-full bg-(--tint) px-2.5 py-1 text-[11px] font-bold text-(--accent)">
         ▶ start timer
       </button>
     );
   }
-  const secs = Math.floor((Date.now() - startedAt) / 1000);
   const mm = String(Math.floor(secs / 60)).padStart(2, '0');
   const ss = String(secs % 60).padStart(2, '0');
   return (
@@ -44,19 +44,13 @@ export default function TaskRow({ task, log, onCheck, onCount }) {
   const status = log?.status ?? null;
   const isDone = status === 'done' || (log?.count ?? 0) > 0;
   const [sparkles, setSparkles] = useState([]);
+  // Local input state is initialised once per mount. Parents remount this
+  // component per date (key={`${task.id}-${date}`}), so a date change gets
+  // fresh state — and background refreshes after autosave can never clobber
+  // what's currently being typed.
   const [count, setCount] = useState(log?.count ?? '');
   const [note, setNote] = useState(log?.note ?? '');
   const debounce = useRef(null);
-  const loadedFor = useRef(log);
-
-  // Refresh local inputs when the date (and therefore the log) changes.
-  useEffect(() => {
-    if (loadedFor.current !== log) {
-      loadedFor.current = log;
-      setCount(log?.count ?? '');
-      setNote(log?.note ?? '');
-    }
-  }, [log]);
 
   const burst = () => {
     const id = Date.now();
