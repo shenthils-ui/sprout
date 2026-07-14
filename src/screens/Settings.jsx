@@ -29,6 +29,7 @@ function ThemeSection() {
       <div className="mt-3 grid grid-cols-3 gap-2">
         {PALETTES.map((p) => (
           <button key={p.id} onClick={() => set({ palette: p.id })}
+            aria-label={`Theme: ${p.name}`} aria-pressed={theme.palette === p.id}
             className={`flex flex-col items-center gap-1 rounded-2xl border-2 p-2.5 text-xs font-bold transition-transform active:scale-95 ${
               theme.palette === p.id ? 'border-(--accent)' : 'border-(--line)'}`}>
             <span className="flex h-8 w-8 items-center justify-center rounded-full text-base"
@@ -230,6 +231,32 @@ function PromptEditor() {
   );
 }
 
+/* ---------- change PIN (parent) ---------- */
+function PinSection() {
+  const [draft, setDraft] = useState('');
+  const [msg, setMsg] = useState(null);
+  const save = async () => {
+    if (!/^\d{4}$/.test(draft)) { setMsg('PIN must be exactly 4 digits.'); return; }
+    const { hashPin } = await import('../../shared/hash.js');
+    await getApi().setSetting({ key: 'pin', value: hashPin(draft) });
+    setDraft('');
+    setMsg('PIN changed ✓');
+  };
+  return (
+    <Section title="🔒 Change PIN">
+      <div className="mt-2 flex gap-2">
+        <input value={draft} inputMode="numeric" maxLength={4} placeholder="New 4-digit PIN"
+          onChange={(e) => setDraft(e.target.value.replace(/\D/g, ''))}
+          className="flex-1 rounded-xl border-2 border-(--line) bg-(--bg) px-3 py-2 text-sm outline-none focus:border-(--accent)" />
+        <button onClick={save} disabled={draft.length !== 4}
+          className="rounded-xl px-4 font-bold text-white disabled:opacity-40"
+          style={{ background: 'var(--accent)' }}>Save</button>
+      </div>
+      {msg && <p className="mt-2 text-xs font-semibold text-(--accent)">{msg}</p>}
+    </Section>
+  );
+}
+
 /* ---------- backup / restore (parent) ---------- */
 function BackupSection() {
   const [msg, setMsg] = useState(null);
@@ -323,6 +350,7 @@ export default function Settings() {
           <TaskEditor />
           <PromptEditor />
           <BackupSection />
+          <PinSection />
         </PinGate>
       </div>
     </div>
