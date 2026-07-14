@@ -26,16 +26,16 @@ const TYPE_LABEL = {
 };
 
 export default function QuizModal({ onClose }) {
-  const [round, setRound] = useState(0); // 0 = today's seeded round
+  // First round of the day is date-seeded; each replay gets a fresh random
+  // seed generated in the event handler (never during render).
+  const [seed, setSeed] = useState(() => dayIndex(todayStr()));
   const [qi, setQi] = useState(0);
   const [chosen, setChosen] = useState(null);
   const [correct, setCorrect] = useState(0);
   const [finished, setFinished] = useState(false);
   const celebrate = useCelebrate();
 
-  const questions = useMemo(
-    () => buildRound(mulberry32(round === 0 ? dayIndex(todayStr()) : Math.floor(Math.random() * 1e9))),
-    [round]);
+  const questions = useMemo(() => buildRound(mulberry32(seed)), [seed]);
   const q = questions[qi];
 
   const choose = async (opt) => {
@@ -59,7 +59,8 @@ export default function QuizModal({ onClose }) {
   };
 
   const again = () => {
-    setRound(round + 1); setQi(0); setChosen(null); setCorrect(0); setFinished(false);
+    setSeed(Math.floor(Math.random() * 1e9));
+    setQi(0); setChosen(null); setCorrect(0); setFinished(false);
   };
 
   return (
