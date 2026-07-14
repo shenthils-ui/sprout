@@ -70,9 +70,10 @@ ok('welcome tour appears on first launch',
 for (let i = 0; i < 3; i++) await page.locator('button', { hasText: 'Next →' }).click();
 await page.locator('button', { hasText: "Let's go!" }).click();
 ok('welcome tour completes', (await page.locator("text=Hi! I'm Pip!").count()) === 0);
-ok('app boots at subpath and seeds 7 tasks',
+ok('app boots at subpath and seeds starter tasks',
   (await page.locator('text=Piano practice').count()) === 1 &&
-  (await page.locator('text=Miobrace').count()) === 1);
+  (await page.locator('text=Miobrace').count()) === 1 &&
+  (await page.locator('text=Fruits & veggies').count()) === 1);
 ok('companion is visible', (await page.locator('text=Pip').first().count()) > 0);
 
 // --- 3. tap a check task -> done + badge celebration ---
@@ -133,6 +134,16 @@ for (const [href, marker] of [
   await page.waitForSelector(`text=${marker}`, { timeout: 10000 });
   ok(`screen ${href} renders`, true);
 }
+// PIN gate: set a PIN, confirm it opens the parent area and is stored hashed
+for (const digit of ['1', '2', '3', '4']) {
+  await page.locator(`button[aria-label="Digit ${digit}"]`).click();
+}
+await page.waitForSelector('text=📝 Tasks', { timeout: 10000 });
+const storedPin = await page.evaluate(async () =>
+  (await window.sproutApi.getSettings()).pin);
+ok('PIN gate opens after setup and stores a hash (not plaintext)',
+  /^[0-9a-f]{64}$/.test(storedPin));
+
 await page.locator('a[href$="/guide"]').click();
 await page.waitForSelector('text=How Sprout works', { timeout: 10000 });
 await page.locator('button', { hasText: 'Diary — your private book' }).click();
